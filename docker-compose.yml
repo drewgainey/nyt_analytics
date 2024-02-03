@@ -1,0 +1,35 @@
+version: "3"
+
+services:
+  destination_db:
+    image: postgres:9.5
+    ports:
+      - "5434:5432"
+    networks:
+      - nyt_data_network
+    environment:
+      POSTGRES_DB: destination_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - ./destination_db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d destination_db -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  extract_archive:
+    build:
+      context: ./extract_archive
+      dockerfile: Dockerfile
+    command: ["python", "archive.py"]
+    networks:
+      - nyt_data_network
+    depends_on:
+      destination_db:
+        condition: service_healthy
+
+networks:
+  nyt_data_network:
+    driver: bridge
